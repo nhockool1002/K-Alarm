@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:alarm/alarm.dart';
 
 import '../models/alarm_item.dart';
+import '../theme/sounds.dart';
 
 /// Wraps the native `alarm` plugin: turns an [AlarmItem] into a scheduled,
 /// full-screen, lock-screen-breaking native alarm, and knows how to work out
@@ -35,16 +38,32 @@ class AlarmScheduler {
         .add(const Duration(days: 7));
   }
 
+  /// How long we'll wait on a single native `alarm` plugin call before
+  /// giving up. Without this, a stuck platform channel call (seen on some
+  /// devices/OEM skins) left callers (and the Save button) hanging forever.
+  static const _nativeCallTimeout = Duration(seconds: 8);
+
   /// Arms (or re-arms) the native alarm for [item]. No-ops if the item is
   /// disabled, after first cancelling any previously armed alarm with the
   /// same id.
+  ///
+  /// Never hangs: every native call is bounded by [_nativeCallTimeout]. A
+  /// timeout or native error is logged and rethrown as a normal exception
+  /// so callers can surface it to the user instead of spinning forever.
   static Future<void> schedule(AlarmItem item) async {
-    await Alarm.stop(item.id);
+    try {
+      await Alarm.stop(item.id).timeout(_nativeCallTimeout);
+    } on TimeoutException {
+      // Nothing was armed yet under this id, or the stop simply didn't
+      // report back in time — either way it's safe to keep going.
+    }
+
     if (!item.enabled) return;
 
     final dateTime = nextFireTime(item);
     final title = item.isPartOfChain ? 'K-Alarm · chuỗi' : 'K-Alarm';
     final body = item.label.isNotEmpty ? item.label : 'Báo thức ${item.timeLabel}';
+    final sound = kSoundById(item.soundAsset);
 
     await Alarm.set(
       alarmSettings: AlarmSettings(
@@ -55,6 +74,7 @@ class AlarmScheduler {
         warningNotificationOnKill: true,
         androidFullScreenIntent: true,
         allowAlarmOverlap: true,
+        assetAudioPath: sound?.assetPath ?? _defaultAssetAudioPath,
         volumeSettings: VolumeSettings.fixed(volume: item.volume),
         notificationSettings: NotificationSettings(
           title: title,
@@ -67,18 +87,30 @@ class AlarmScheduler {
           keepNotificationAfterAlarmEnds: false,
         ),
       ),
-    );
+    ).timeout(_nativeCallTimeout);
   }
 
-  static Future<void> cancel(int id) => Alarm.stop(id);
+  // The `alarm` plugin always needs an assetAudioPath; fall back to one of
+  // our own bundled tones rather than depending on a device default sound
+  // that may not exist on every OEM skin.
+  static String get _defaultAssetAudioPath =>
+      kSoundById(kDefaultSoundId)?.assetPath ?? 'assets/sounds/classic_beep.mp3';
+
+  static Future<void> cancel(int id) async {
+    try {
+      await Alarm.stop(id).timeout(_nativeCallTimeout);
+    } on TimeoutException {
+      // Treat as already stopped.
+    }
+  }
 
   static Future<void> cancelAll(Iterable<int> ids) async {
     for (final id in ids) {
-      await Alarm.stop(id);
+      await cancel(id);
     }
   }
 
   /// Stops the alarm currently ringing with [id] (call only once the user
   /// has completed the dismiss challenge).
-  static Future<void> stopRinging(int id) => Alarm.stop(id);
+  static Future<void> stopRinging(int id) => cancel(id);
 }

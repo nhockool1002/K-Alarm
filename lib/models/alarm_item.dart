@@ -25,6 +25,10 @@ class AlarmItem {
   double volume;
   bool vibrate;
 
+  /// Id of a bundled sound from `kSoundCatalog` (see lib/theme/sounds.dart),
+  /// e.g. "classic_beep". Null = use the device's default alarm sound.
+  String? soundAsset;
+
   /// If part of a chain, the chain's id; otherwise null.
   String? chainId;
 
@@ -41,6 +45,7 @@ class AlarmItem {
     ChallengeConfig? challenge,
     this.volume = 0.8,
     this.vibrate = true,
+    this.soundAsset,
     this.chainId,
     this.chainOrder = 0,
   })  : repeatDays = repeatDays ?? [],
@@ -62,6 +67,7 @@ class AlarmItem {
         'challenge': challenge.toJson(),
         'volume': volume,
         'vibrate': vibrate,
+        'soundAsset': soundAsset,
         'chainId': chainId,
         'chainOrder': chainOrder,
       };
@@ -79,10 +85,15 @@ class AlarmItem {
           : ChallengeConfig(),
       volume: (json['volume'] as num?)?.toDouble() ?? 0.8,
       vibrate: json['vibrate'] as bool? ?? true,
+      soundAsset: json['soundAsset'] as String?,
       chainId: json['chainId'] as String?,
       chainOrder: json['chainOrder'] as int? ?? 0,
     );
   }
+
+  /// Sentinel used so [copyWith] can tell "leave soundAsset unchanged" apart
+  /// from "explicitly set soundAsset to null (= device default sound)".
+  static const Object _unset = Object();
 
   AlarmItem copyWith({
     String? label,
@@ -93,6 +104,7 @@ class AlarmItem {
     ChallengeConfig? challenge,
     double? volume,
     bool? vibrate,
+    Object? soundAsset = _unset,
     String? chainId,
     int? chainOrder,
   }) {
@@ -106,6 +118,8 @@ class AlarmItem {
       challenge: challenge ?? this.challenge,
       volume: volume ?? this.volume,
       vibrate: vibrate ?? this.vibrate,
+      soundAsset:
+          identical(soundAsset, _unset) ? this.soundAsset : soundAsset as String?,
       chainId: chainId ?? this.chainId,
       chainOrder: chainOrder ?? this.chainOrder,
     );

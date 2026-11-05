@@ -4,7 +4,9 @@ import '../models/alarm_item.dart';
 import '../models/challenge.dart';
 import '../services/alarm_repository.dart';
 import '../theme/brand.dart';
+import '../theme/sounds.dart';
 import '../widgets/challenge_config_editor.dart';
+import '../widgets/sound_picker.dart';
 
 const _weekdayLabels = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
 
@@ -25,6 +27,7 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
   late ChallengeConfig _challenge;
   late double _volume;
   late bool _vibrate;
+  String? _soundAsset;
   bool _saving = false;
 
   bool get _isNew => widget.existing == null;
@@ -45,6 +48,7 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
     );
     _volume = e?.volume ?? 0.8;
     _vibrate = e?.vibrate ?? true;
+    _soundAsset = e?.soundAsset ?? (e == null ? kDefaultSoundId : null);
   }
 
   @override
@@ -58,32 +62,54 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
     if (res != null) setState(() => _time = res);
   }
 
+  Future<void> _pickSound() async {
+    final picked = await showSoundPicker(context, current: _soundAsset);
+    if (!mounted) return;
+    setState(() => _soundAsset = picked);
+  }
+
   Future<void> _save() async {
     setState(() => _saving = true);
-    final repo = AlarmRepository.instance;
-    if (_isNew) {
-      await repo.createAlarm(
-        hour: _time.hour,
-        minute: _time.minute,
-        label: _labelController.text.trim(),
-        repeatDays: _repeatDays.toList()..sort(),
-        challenge: _challenge,
-        volume: _volume,
-        vibrate: _vibrate,
+    try {
+      final repo = AlarmRepository.instance;
+      if (_isNew) {
+        await repo.createAlarm(
+          hour: _time.hour,
+          minute: _time.minute,
+          label: _labelController.text.trim(),
+          repeatDays: _repeatDays.toList()..sort(),
+          challenge: _challenge,
+          volume: _volume,
+          vibrate: _vibrate,
+          soundAsset: _soundAsset,
+        );
+      } else {
+        final updated = widget.existing!.copyWith(
+          hour: _time.hour,
+          minute: _time.minute,
+          label: _labelController.text.trim(),
+          repeatDays: _repeatDays.toList()..sort(),
+          challenge: _challenge,
+          volume: _volume,
+          vibrate: _vibrate,
+          soundAsset: _soundAsset,
+        );
+        await repo.updateAlarm(updated);
+      }
+      if (mounted) Navigator.of(context).pop();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_errorMessage(e))),
       );
-    } else {
-      final updated = widget.existing!.copyWith(
-        hour: _time.hour,
-        minute: _time.minute,
-        label: _labelController.text.trim(),
-        repeatDays: _repeatDays.toList()..sort(),
-        challenge: _challenge,
-        volume: _volume,
-        vibrate: _vibrate,
-      );
-      await repo.updateAlarm(updated);
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
-    if (mounted) Navigator.of(context).pop();
+  }
+
+  String _errorMessage(Object e) {
+    if (e is AlarmSchedulingException) return e.message;
+    return 'Không thể lưu báo thức. Vui lòng thử lại. ($e)';
   }
 
   Future<void> _delete() async {
@@ -181,6 +207,15 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
               ),
               const Icon(Icons.volume_up),
             ],
+          ),
+          const SizedBox(height: 8),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.music_note_outlined),
+            title: const Text('Âm báo thức'),
+            subtitle: Text(kSoundLabel(_soundAsset)),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: _pickSound,
           ),
           const SizedBox(height: 24),
           FilledButton(

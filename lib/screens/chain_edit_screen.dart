@@ -4,19 +4,23 @@ import '../models/alarm_item.dart';
 import '../models/challenge.dart';
 import '../services/alarm_repository.dart';
 import '../theme/brand.dart';
+import '../theme/sounds.dart';
 import '../widgets/challenge_config_editor.dart';
+import '../widgets/sound_picker.dart';
 
 /// One editable row inside the chain editor's in-memory draft.
 class _EntryDraft {
   TimeOfDay time;
   String label;
   ChallengeConfig challenge;
+  String? soundAsset;
   final int? existingId;
 
   _EntryDraft({
     required this.time,
     this.label = '',
     ChallengeConfig? challenge,
+    this.soundAsset,
     this.existingId,
   }) : challenge = challenge ?? ChallengeConfig();
 }
@@ -50,12 +54,13 @@ class _ChainEditScreenState extends State<ChainEditScreen> {
           time: TimeOfDay(hour: item.hour, minute: item.minute),
           label: item.label,
           challenge: item.challenge,
+          soundAsset: item.soundAsset,
           existingId: item.id,
         ));
       }
     }
     if (_entries.isEmpty) {
-      _entries.add(_EntryDraft(time: TimeOfDay.now()));
+      _entries.add(_EntryDraft(time: TimeOfDay.now(), soundAsset: kDefaultSoundId));
     }
   }
 
@@ -71,8 +76,16 @@ class _ChainEditScreenState extends State<ChainEditScreen> {
     setState(() {
       _entries.add(_EntryDraft(
         time: TimeOfDay(hour: nextMinutes ~/ 60, minute: nextMinutes % 60),
+        soundAsset: kDefaultSoundId,
       ));
     });
+  }
+
+  Future<void> _pickSoundFor(int index) async {
+    final draft = _entries[index];
+    final picked = await showSoundPicker(context, current: draft.soundAsset);
+    if (!mounted) return;
+    setState(() => draft.soundAsset = picked);
   }
 
   void _removeEntry(int index) {
@@ -100,24 +113,39 @@ class _ChainEditScreenState extends State<ChainEditScreen> {
       return;
     }
     setState(() => _saving = true);
-    final drafts = _sortedEntries
-        .map((e) => ChainEntryDraft(
-              hour: e.time.hour,
-              minute: e.time.minute,
-              label: e.label,
-              challenge: e.challenge,
-              existingId: e.existingId,
-            ))
-        .toList();
+    try {
+      final drafts = _sortedEntries
+          .map((e) => ChainEntryDraft(
+                hour: e.time.hour,
+                minute: e.time.minute,
+                label: e.label,
+                challenge: e.challenge,
+                soundAsset: e.soundAsset,
+                existingId: e.existingId,
+              ))
+          .toList();
 
-    final repo = AlarmRepository.instance;
-    if (_isNew) {
-      await repo.createChain(name: _nameController.text.trim(), entries: drafts);
-    } else {
-      widget.existing!.name = _nameController.text.trim();
-      await repo.updateChain(widget.existing!, entries: drafts);
+      final repo = AlarmRepository.instance;
+      if (_isNew) {
+        await repo.createChain(name: _nameController.text.trim(), entries: drafts);
+      } else {
+        widget.existing!.name = _nameController.text.trim();
+        await repo.updateChain(widget.existing!, entries: drafts);
+      }
+      if (mounted) Navigator.of(context).pop();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_errorMessage(e))),
+      );
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
-    if (mounted) Navigator.of(context).pop();
+  }
+
+  String _errorMessage(Object e) {
+    if (e is AlarmSchedulingException) return e.message;
+    return 'Không thể lưu chuỗi báo thức. Vui lòng thử lại. ($e)';
   }
 
   Future<void> _delete() async {
@@ -202,6 +230,16 @@ class _ChainEditScreenState extends State<ChainEditScreen> {
                     ChallengeConfigEditor(
                       config: draft.challenge,
                       onChanged: (c) => setState(() => draft.challenge = c),
+                    ),
+                    const SizedBox(height: 8),
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                      leading: const Icon(Icons.music_note_outlined, size: 20),
+                      title: const Text('Âm báo thức', style: TextStyle(fontSize: 14)),
+                      subtitle: Text(kSoundLabel(draft.soundAsset)),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => _pickSoundFor(index),
                     ),
                   ],
                 ),

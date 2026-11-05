@@ -56,6 +56,9 @@ dependencies:
   # Renders the K-Alarm brand mark (assets/brand/logo.svg) in-app
   flutter_svg: ^2.0.17
 
+  # Previewing bundled alarm tones in the sound picker
+  audioplayers: ^6.1.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -83,6 +86,7 @@ flutter:
 
   assets:
     - assets/brand/logo.svg
+    - assets/sounds/
 
   # K-Alarm brand typefaces (bundled locally so the clock keeps working with
   # no network, e.g. mid-ring with the device in airplane/offline mode).

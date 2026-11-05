@@ -74,11 +74,15 @@ lib/
     ring_screen.dart       # Màn hình báo thức đang reo + nhiệm vụ tắt
   widgets/
     challenge_config_editor.dart     # UI chọn & cấu hình loại nhiệm vụ
+    sound_picker.dart                # Bottom sheet chọn âm báo thức (có nghe trước)
     challenges/
       math_challenge.dart
       qr_challenge.dart
       shake_challenge.dart
       retype_challenge.dart
+  theme/
+    brand.dart   # Màu, font, ThemeData
+    sounds.dart  # Danh mục 27 âm báo thức có sẵn
 ```
 
 ## Ghi chú về hành vi báo thức
@@ -90,6 +94,9 @@ lib/
 - Thông báo của báo thức **không có nút "Tắt"** và **không tắt khi vuốt bỏ thông báo**
   (`androidStopAlarmOnDismiss: false`) — mục đích là buộc người dùng mở app và hoàn thành nhiệm
   vụ ở màn hình `RingScreen` thì báo thức mới thực sự dừng.
-- Muốn đổi âm thanh báo thức: thêm file mp3 vào `assets/` (khai báo trong `pubspec.yaml`) và set
-  `assetAudioPath` khi gọi `AlarmScheduler.schedule` trong `lib/services/alarm_scheduler.dart`.
-  Hiện tại dùng âm báo thức mặc định của máy.
+- **Âm báo thức**: app có sẵn **27 âm báo thức** tự tổng hợp (không vi phạm bản quyền), nằm trong
+  `assets/sounds/`. Mỗi báo thức đơn, và mỗi mốc giờ trong một chuỗi, có thể chọn âm riêng qua mục
+  "Âm báo thức" trong màn hình sửa (xem trước bằng nút play trước khi chọn). Danh mục âm nằm ở
+  `lib/theme/sounds.dart`, UI chọn ở `lib/widgets/sound_picker.dart`. Muốn thêm âm mới: chạy
+  `python3 tools/gen_sounds.py` sau khi thêm định nghĩa mới trong file đó, rồi khai báo trong
+  `lib/theme/sounds.dart`.
