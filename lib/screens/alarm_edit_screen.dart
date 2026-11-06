@@ -217,19 +217,28 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
             trailing: const Icon(Icons.chevron_right),
             onTap: _pickSound,
           ),
-          const SizedBox(height: 24),
-          FilledButton(
-            onPressed: _saving ? null : _save,
-            style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(50)),
-            child: _saving
-                ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Text('Lưu báo thức'),
-          ),
+          // Extra breathing room so the last field never sits flush against
+          // the docked Save button below.
+          const SizedBox(height: 16),
         ],
+      ),
+      // Docked outside the scroll view (not as the ListView's last child) so
+      // it's always on-screen and tappable — never hidden behind the
+      // system gesture bar / nav buttons on tall-aspect-ratio phones, and
+      // never requiring an extra scroll to reach.
+      bottomNavigationBar: SafeArea(
+        minimum: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+        child: FilledButton(
+          onPressed: _saving ? null : _save,
+          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(50)),
+          child: _saving
+              ? const SizedBox(
+                  height: 20,
+                  width: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Lưu báo thức'),
+        ),
       ),
     );
   }

@@ -251,19 +251,25 @@ class _ChainEditScreenState extends State<ChainEditScreen> {
             icon: const Icon(Icons.add),
             label: const Text('Thêm mốc giờ'),
           ),
-          const SizedBox(height: 24),
-          FilledButton(
-            onPressed: _saving ? null : _save,
-            style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(50)),
-            child: _saving
-                ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Text('Lưu chuỗi báo thức'),
-          ),
+          const SizedBox(height: 16),
         ],
+      ),
+      // Docked outside the scroll view so it's always on-screen and
+      // tappable — never hidden behind the system gesture bar / nav
+      // buttons, however many chain entries are in the list above.
+      bottomNavigationBar: SafeArea(
+        minimum: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+        child: FilledButton(
+          onPressed: _saving ? null : _save,
+          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(50)),
+          child: _saving
+              ? const SizedBox(
+                  height: 20,
+                  width: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Lưu chuỗi báo thức'),
+        ),
       ),
     );
   }
